@@ -1,0 +1,58 @@
+---
+title: "643_Discussion1_DieudonneO"
+author: "Dieudonne"
+date: "June 15, 2016"
+output: pdf_document
+---
+
+
+# Scenario Design Analysis for YOOX.COM
+# Introduction
+
+***For this discussion I explored YOOX website(www.yoox.com) !Yoox is an online shopping site where users find europeans and high end clothing at  discounted prices!The goal of my discussion is to present their recommendation system and to give my perception on a possible improvement of their system!***
+
+# Who Are the Users 
+***The users in this case are the customers(or potential customers) visiting the website,mostly looking to make a purchase ,compare prices ,find interesting items***
+
+#Key Goals 
+
+#*From the company side 
+
+***Please noticed that the items in this case are clothings ,shoes or accessories!***
+***The goals are to generate mores sales ,retain customers,provide and suggest items that potentially lead to sales or more revenue,to provide to the user a good session which push him to become  a regular visitor and a longterm client***
+
+#*From the customers perpective 
+
+***Find products easily and quicker , make a purchase,   to be sastified with the online session!***
+
+#How to Accomplish these Goals 
+
+#*From the company side 
+
+***An efficient  recommender system must be used.As a user comes to the front page ,the website must make generic recommendations of differents categories of items that may be interesting to the user.As  a user launch a search or click on a category ,the system will begun to present a more  tailored recommended items to the user based on the step the user take***
+
+#*From the customer side 
+
+***Viewing,Browsing and clicking on items***
+
+
+# Reverse Engineering the Recommender System
+
+***This site  like many other commercial websites uses cookies, sessions, previous browsing history & previous purchase history and online  search words, filtered categories to provide recommendations to it's online customers.I suspect that they are using IBCF and UBCF  combined with other techniques to reach their goal***
+The source code of this website could be find here
+view-source:http://www.yoox.com/us/women?adpos=1t1&creative=125476510447&device=c&matchtype=e&network=g&tp=104415&gclid=CO_Csd-Yqc0CFUQvgQod9XMNbA
+
+#Improvement
+
+***I found the site search and recommendation system to be poor .Typical search return on other commercial sites give more accurate informations(example a search on tweed suit will return no match ,even they are in their system ).I suspect the descriptions of the items in the system is not proprely done ,there are not enough attributes to the items  to proprely classified items and index them,the recommendation window is limited and tend to circle around on few of the same items  instead of poping new items ,customers are not serve with many options even the website contains millions of items.The company can do great improvements by  tackling those issues I mentioned above***
+
+
+
+
+
+
+
+
+
+
+
