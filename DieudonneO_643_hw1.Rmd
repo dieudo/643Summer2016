@@ -1,0 +1,229 @@
+---
+title: "hw1_643_DieudonneO"
+author: "Dieudonne"
+date: "June 19, 2016"
+output: pdf_document
+---
+
+
+
+
+#RECOMMENDER SYSTEM ON MOVIE LENS DATA
+#INTRODUCTION
+***This is a mini project I wrote for my course Data 643 at CUNY***
+
+*The goal here is to explore recommenderlab,write few functions and predict recommendations to users based on the User-Based -Collaborative-Filtering(UBCF) which through this project appears to be  the most suited*
+
+There are 2 sets of data u.data which is ratings data and u.item data which is movie data
+
+The data are located here http://grouplens.org/datasets/movielens/
+
+```{r,warning=FALSE,message=FALSE,}
+#RECOMMENDER SYSTEM ON MOVIE LENS DATA
+
+#(The data are located here http://grouplens.org/datasets/movielens/)
+library(recommenderlab)
+library(reshape2)
+
+```
+
+#FUNCTION TO GRAB THE DATA 
+
+```{r}
+
+get.Data <- function(){
+  
+  ##laod ratings data
+  ratings <- read.delim("~/Downloads/u.data.txt", header=F)
+  colnames(ratings) <- c("userID","movieID","rating", "timestamp")
+  
+  ## load movies data
+  movies <- read.delim("~/Downloads/u.item.txt", sep="|", header=F, stringsAsFactors = FALSE)
+  colnames(movies)[colnames(movies)=="V1"] <- "movieID"
+  colnames(movies)[colnames(movies)=="V2"] <- "name"
+  
+  return(list(ratings=ratings, movies=movies))
+  
+}
+```
+
+
+#FUNCTION FOR  DATA PREPARATION AND PROCESSING
+
+```{r}
+Pre.Process = function(ratings, movies)
+{ 
+  ratings[,2] <- dataList$movies$name[as.numeric(ratings[,2])]
+  
+  # remove duplicate entries for any user-movie combination
+  ratings <- ratings[!duplicated(ratings[,1:2]),]
+}
+```
+
+#Function to Create movie ratingMatrix from rating Data and movie data 
+
+```{r}
+Create.Rating.Matrix <- function(ratings)
+{
+  # converting the ratingData data frame into rating matrix
+  Ratings.Mat <- dcast( ratings, userID ~ movieID, value.var = "rating" , index="userID")
+  ratings <- Ratings.Mat[,2:ncol(Ratings.Mat)]
+  
+  Ratings.Mat.Fin <- as(ratings, "matrix")  ## cast data frame as matrix
+  movie.Rating.Mat <- as(Ratings.Mat.Fin, "realRatingMatrix")   ## create the realRatingMatrix
+  ### setting up the dimnames ###
+  dimnames(movie.Rating.Mat)[[1]] <- row.names(ratings)
+  return (movie.Rating.Mat)
+}
+
+```
+
+
+#MODELS
+
+```{r}
+evaluateModels <- function(movie.Rating.Mat)
+  
+{
+  ## Find out and analyse available  recommendation algorithm options for realRatingMatrix data
+  recommenderRegistry$get_entries(dataType = "realRatingMatrix")
+  
+  scheme <- evaluationScheme(movie.Rating.Mat, method = "split", train = .9,
+                             k = 1, given = 10, goodRating = 4)
+  
+  algorithms <- list(
+    RANDOM = list(name="RANDOM", param=NULL),
+    POPULAR = list(name="POPULAR", param=NULL),
+    UBCF = list(name="UBCF", param=NULL)
+  )
+  
+  # run algorithms, predict next n movies
+  res <- evaluate(scheme, algorithms, n=c(1, 3, 5, 10, 15, 20))
+  
+  ## select the first results
+  
+  return (res)
+}
+
+```
+
+#VISUALIZATION
+
+```{r}
+graphs <- function(res)
+{
+  # Draw ROC curve
+  plot(res, annotate = 1:3, legend="topright")
+  
+  # See precision / recall
+  plot(res, "prec/rec", annotate=3, legend="topright", xlim=c(0,.22))
+}
+
+```
+
+#CREATE FUNCTION FOR PREDICTION MODEL
+
+```{r}
+create.Model <-function (movie.Rating.Mat,method){
+  
+  model <- Recommender(movie.Rating.Mat, method = method)
+  names(getModel(model))
+  getModel(model)$method
+  
+  getModel(model)$nn
+  
+  return (model)
+}
+
+```
+
+### RATINGS PREDICTIONS USING USER BASED C FILTERING RECOMMENDATIONS
+
+
+```{r}
+rec <- function(movie.Rating.Mat, model, userID, n)
+{
+  
+  ### PREDICT THE TOP N recommendations for given user
+  Top.N.List <-predict(model,movie.Rating.Mat[userID],n=n)
+  as(Top.N.List,"list")
+}
+
+```
+
+# LOAD MOVIE LENS DATA  
+
+```{r}
+dataList<- get.Data()
+```
+
+# DATA PREPARATION AND PROCESSING
+
+```{r}
+ratings<- Pre.Process(dataList$ratings, dataList$movies)
+```
+
+
+# MATRIX FOR MOVIE RATING
+
+
+```{r}
+movie.Rating.Mat<- Create.Rating.Matrix(ratings)
+
+```
+
+# MODELS EVALUTION
+
+```{r}
+evalList <- evaluateModels(movie.Rating.Mat)
+evalList
+```
+
+
+
+#The plot for comparing "Random", "Popular", "UBCF" based recommender algorithm is shown:
+# plot evaluation result
+
+```{r}
+graphs(evalList)
+
+```
+
+## on visualization, looks like UBCF has highest precision.
+#The visualisation shows "UBCF" algorithm has highest precision. So I picked "UBCF" to predicts top 10  recommendation of user with userID = 1. 
+
+# get Confusion matrix for "UBCF"
+
+
+```{r}
+getConfusionMatrix(evalList[["UBCF"]])[[1]][,1:4]
+```
+
+
+## LET DO THE RECOMMENDATION BASED ON  "UBCF" 
+
+```{r}
+
+rec_model <- create.Model(movie.Rating.Mat, "UBCF")
+userID <- 1
+topN <- 5
+rec(movie.Rating.Mat, rec_model, userID, topN)
+userID<-2
+topN<-10
+rec(movie.Rating.Mat, rec_model, userID, topN)
+
+```
+
+#Let recommend the top 10 movies for users with ID between 5 and 15 
+
+```{r}
+
+for (userID in 5:15){
+  print("We recommend you those movies")
+  print(rec(movie.Rating.Mat,rec_model,userID,topN))
+}
+```
+
+
+
+
