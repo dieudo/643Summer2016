@@ -1,0 +1,319 @@
+---
+title: "hw3_643_DieudonneO"
+author: "Dieudonne"
+date: "July03, 2016"
+output: pdf_document
+---
+
+
+
+
+#RECOMMENDER SYSTEM ON MOVIE LENS DATA
+#INTRODUCTION
+**This is the third mini project I wrote for my course Data 643 at CUNY**
+#THE GOAL HERE IS TO USE MATRIX SINGULAR VALUE DECOMPOSITION TO DO RECOMMENDATIONS
+
+*I use mainly recommenderlab,write few functions and predict recommendations to users using various filtering methods and i compare the methods*
+
+There are 2 sets of data u.data which is ratings data and u.item data which is movie data
+
+The data are located here http://grouplens.org/datasets/movielens/
+
+```{r,warning=FALSE,message=FALSE,}
+library(recommenderlab)
+library(reshape2)
+
+```
+#FUNCTION TO GRAB THE DATA 
+
+```{r}
+##laod ratings data
+get.Data <- function(){
+  ratings <- read.delim("~/Downloads/u.data.txt", header=F)
+  colnames(ratings) <- c("userID","movieID","rating", "timestamp")
+  
+  ## load movies data
+  movies <- read.delim("~/Downloads/u.item.txt", sep="|", header=F, stringsAsFactors = FALSE)
+  colnames(movies)[colnames(movies)=="V1"] <- "movieID"
+  colnames(movies)[colnames(movies)=="V2"] <- "name"
+  
+  return(list(ratings=ratings, movies=movies))
+  
+}
+```
+
+
+#FUNCTION FOR  DATA PREPARATION AND PROCESSING
+
+```{r}
+Pre.Process = function(ratings, movies)
+{ 
+  ratings[,2] <- dataList$movies$name[as.numeric(ratings[,2])]
+  
+  # remove duplicate entries for any user-movie combination
+  ratings <- ratings[!duplicated(ratings[,1:2]),]
+}
+```
+
+#Function to Create movie ratingMatrix from rating Data and movie data 
+
+```{r}
+Create.Rating.Matrix <- function(ratings)
+{
+  # converting the ratingData data frame into rating matrix
+  Ratings.Mat <- dcast( ratings, userID ~ movieID, value.var = "rating" , index="userID")
+  ratings <- Ratings.Mat[,2:ncol(Ratings.Mat)]
+  
+  Ratings.Mat.Fin <- as(ratings, "matrix")  ## cast data frame as matrix
+  movie.Rating.Mat <- as(Ratings.Mat.Fin, "realRatingMatrix")   ## create the realRatingMatrix
+  ### setting up the dimnames ###
+  dimnames(movie.Rating.Mat)[[1]] <- row.names(ratings)
+  return (movie.Rating.Mat)
+}
+
+```
+
+
+#MODELS
+
+```{r}
+evaluateModels <- function(movie.Rating.Mat)
+  
+{
+  ## Find out and analyse available  recommendation algorithm options for realRatingMatrix data
+  recommenderRegistry$get_entries(dataType = "realRatingMatrix")
+  
+  scheme <- evaluationScheme(movie.Rating.Mat, method = "split", train = .9,
+                             k = 1, given = 10, goodRating = 4)
+  
+  algorithms <- list(
+    RANDOM = list(name="RANDOM", param=NULL),
+    POPULAR = list(name="POPULAR", param=NULL),
+    UBCF = list(name="UBCF", param=NULL),
+    IBCF= list(name="IBCF",param=NULL),
+    SVD=list(name="SVD",param=NULL)
+  )
+  
+  # run algorithms, predict next n movies
+  res <- evaluate(scheme, algorithms, n=c(1, 3, 5, 10, 15, 20))
+  
+  ## select the first results
+  
+  return (res)
+}
+
+```
+
+#VISUALIZATION
+
+```{r}
+graphs <- function(res)
+{
+  # Draw ROC curve
+  plot(res, annotate = 1:5, legend="topright")
+  
+  # See precision / recall
+  plot(res, "prec/rec", annotate=5, legend="topright", xlim=c(0,.22))
+}
+
+```
+
+#CREATE FUNCTION FOR PREDICTION MODEL
+
+```{r}
+create.Model <-function (movie.Rating.Mat,method){
+  
+  model <- Recommender(movie.Rating.Mat, method = method)
+  names(getModel(model))
+  getModel(model)$method
+  
+  getModel(model)$nn
+  
+  return (model)
+}
+
+```
+
+### RATINGS PREDICTIONS USING USER BASED C FILTERING RECOMMENDATIONS
+
+
+```{r}
+rec <- function(movie.Rating.Mat, model, userID, n)
+{
+  
+  ### PREDICT THE TOP N recommendations for given user
+  Top.N.List <-predict(model,movie.Rating.Mat[userID],n=n)
+  as(Top.N.List,"list")
+}
+
+```
+
+
+
+
+
+# LOAD MOVIE LENS DATA  
+
+```{r}
+dataList<- get.Data()
+```
+
+# DATA PREPARATION AND PROCESSING
+
+```{r}
+ratings<- Pre.Process(dataList$ratings, dataList$movies)
+```
+
+
+
+#NORMALIZATION,BINARIZATION, REAL RATING  MATRIX 
+
+
+```{r,warning=FALSE,message=FALSE}
+library(ggplot2)
+library(Hmisc)
+movie.Rating.Mat<- Create.Rating.Matrix(ratings)
+l=as(movie.Rating.Mat,"list")
+m<-as(movie.Rating.Mat,"matrix")
+rm<-normalize(movie.Rating.Mat)
+image(movie.Rating.Mat,main="Raw Ratings")
+image(rm,main="Normalized Ratings")
+bm<-binarize(movie.Rating.Mat,minRating=4)
+image(bm,main="binarize data")
+```
+
+# MODELS EVALUATION
+
+```{r}
+evalList <- evaluateModels(movie.Rating.Mat)
+evalList
+```
+
+
+
+#The plot for comparing "Random", "Popular", "UBCF",IBCF based recommender algorithm is shown:
+# plot evaluation result
+
+```{r}
+graphs(evalList)
+
+```
+ 
+# CLEARLY UBCF got the better metrics  compare to the other methods 
+
+# CONFUSION MATRIX FOR ALL METHODS
+
+
+```{r}
+getConfusionMatrix(evalList[["UBCF"]])[[1]][,1:4]
+getConfusionMatrix(evalList[["IBCF"]])[[1]][,1:4]
+getConfusionMatrix(evalList[["POPULAR"]])[[1]][,1:4]
+getConfusionMatrix(evalList[["RANDOM"]])[[1]][,1:4]
+
+```
+
+
+## LET DO THE RECOMMENDATION BASED ON  "UBCF" 
+
+```{r}
+
+rec_model <- create.Model(movie.Rating.Mat, "UBCF")
+userID <- 1
+topN <- 5
+rec(movie.Rating.Mat, rec_model, userID, topN)
+userID<-2
+topN<-10
+rec(movie.Rating.Mat, rec_model, userID, topN)
+
+```
+
+#Let recommend the top 10 movies for users with ID between 5 and 15 
+
+```{r}
+
+#for (userID in 5:15){
+ # print("We recommend you those movies")
+#  print(rec(movie.Rating.Mat,rec_model,userID,topN))
+#}
+rec_model2 <- create.Model(movie.Rating.Mat, "IBCF")
+userID <- 1
+topN <- 5
+rec(movie.Rating.Mat, rec_model2, userID, topN)
+userID<-2
+topN<-10
+rec(movie.Rating.Mat, rec_model2, userID, topN)
+
+rec_model3 <- create.Model(movie.Rating.Mat, "POPULAR")
+userID <- 1
+topN <- 5
+rec(movie.Rating.Mat, rec_model3, userID, topN)
+userID<-2
+topN<-10
+rec(movie.Rating.Mat, rec_model3, userID, topN)
+
+rec_model4 <- create.Model(movie.Rating.Mat, "RANDOM")
+userID <- 1
+topN <- 5
+rec(movie.Rating.Mat, rec_model4, userID, topN)
+userID<-2
+topN<-10
+rec(movie.Rating.Mat, rec_model4, userID, topN)
+
+```
+
+#RECOMMENDATION USING MANUAL SV DECOMPOSITION
+
+```{r,warning=FALSE,message=FALSE}
+library(reshape2)
+library(dplyr)
+library(recommenderlab)
+library(NMF)
+# Reload the part of the data
+movies<-dataList$movies
+rn<- normalize(movie.Rating.Mat)
+rn <- as(rn, "matrix")
+rn[is.na(rn)] <- 0
+rn.svd <- svd(rn)
+
+s<- cumsum(rn.svd$d) / sum(rn.svd$d)
+k <- min(which(s >= 0.6))
+```
+
+# WE CAN HAVE SMALLER OR GREATER DIMENSIONS REDUCTION DEPENDING ON THE VALUE of s above for s>=0.6 ,I found the optimal value to be 242,the 943*943 can be reduced to 242
+
+```{r}
+k
+```
+
+
+```{r}
+d <- diag(sqrt(rn.svd$d[1:k]))
+u <- rn.svd$u[,1:k]
+v <- rn.svd$v[1:k,]
+
+w<- data.frame(u%*%d%*%v)
+colnames(w) <- 1:943
+
+df<- data.frame(matrix(NA, nrow = 943, ncol = 943))
+for(i in 1:ncol(w)) {
+   df[i,] <- colnames(w[i,order(w[i,],decreasing = TRUE)])
+}
+
+subdf<- df[5,1]
+movieUser<- subset(ratings, userID == subdf)
+df2 <- head(movieUser[order(-movieUser$rating),],5)
+```
+
+
+# HERE WE RECOMMEND TO THE USER with userID ,the movie with rating 5 based on users who are most similar to userID ,their userIDs are to the left.
+
+```{r}
+df2
+```
+
+# Here we recommend movies to the userID 5 with rating greater than 2 with the most similar users to userID 5 
+
+```{r}
+movieUser <- subset(ratings, userID == 5 & rating > 2)
+df3<-head(movieUser)
+df3
