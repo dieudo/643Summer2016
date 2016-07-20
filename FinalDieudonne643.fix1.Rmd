@@ -1,0 +1,257 @@
+---
+title: "FinalDieudonnefIX1"
+author: "Dieudonne"
+date: "July 19, 2016"
+output: pdf_document
+---
+
+
+#Introduction
+#This the final project of my course Data 643 at CUNY 
+#The goal is to explore recommender system in some context as time ,as location ,gender....
+# For this project I will use 3 data set all made avaible by grouplense.
+**For MovieLense and MovieLenseMeta ,'recommenderlab' provides the data** 
+**the third data could be dowloaded here**
+https://github.com/dieudo/643Summer2016/blob/master/unifiedMLDataMulti.csv
+
+
+#Initially ,I planed to work and compare packages  avalaible on recommendations systems ,but due to time cnstraint I am going to readjust my goal.
+**This project will be sectioned in 3 part,the first part is comparing and building algorithms around MovieLense data and getting to know the performances associated**.
+**The second part is exploring  the users that rated the movies ,can we classified them and learn something related to their age ,their occupations?**
+**The third part will be to implement a contextual time value associted to the year**
+
+
+
+```{r}
+#DATA & libraries
+library(plyr)
+library(RColorBrewer)
+library(grid)
+library("recommenderlab")
+library(ggplot2)
+data_package <- data(package = "recommenderlab")
+data_package$results[, "Item"]
+data(MovieLense)
+str(MovieLense)
+str(MovieLenseMeta)
+class(MovieLense)
+methods(class = class(MovieLense))
+data<- read.csv("~/Downloads/unifiedMLDataMulti.csv")
+```
+
+
+#
+
+
+```{r}
+views_per_movie <- colCounts(MovieLense)
+
+views_tbl <- data.frame(
+  movie = names(views_per_movie),
+  views = views_per_movie
+)
+
+views_tbl <- views_tbl[order(views_tbl$views, decreasing = TRUE), ]
+
+head(views_tbl)
+
+ggplot(views_tbl[1:5, ], aes(x = movie, y = views)) +
+  geom_bar(stat="identity") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("identity")
+ratings_avg <- colMeans(MovieLense)
+
+ratings_avg_relevant <- ratings_avg[views_per_movie > 100]
+
+qplot(ratings_avg_relevant) + stat_bin(binwidth = 0.1) +
+  ggtitle(paste("average relevant ratings"))
+
+ratings_movies <- MovieLense[rowCounts(MovieLense) > 50,
+                             colCounts(MovieLense) > 100] 
+ratings_movies
+
+min_movies <- quantile(rowCounts(ratings_movies), 0.90)
+min_users <- quantile(colCounts(ratings_movies), 0.90)
+
+ratings_movies_norm <- normalize(ratings_movies)
+
+# visualize the normalized matrix
+image(ratings_movies_norm[rowCounts(ratings_movies_norm) > min_movies,
+                          colCounts(ratings_movies_norm) > min_users], main = "with 10 % top")
+
+ratings_movies <- MovieLense[rowCounts(MovieLense) > 50,
+                             colCounts(MovieLense) > 100]
+ratings_movies
+
+
+percentage_training <- 0.8
+items_to_keep <- 15
+rating_threshold <- 3
+n_eval <- 1
+
+eval_scheme <- evaluationScheme(data = ratings_movies, method = "split",
+                                train = percentage_training, 
+                                given = items_to_keep, 
+                                goodRating = rating_threshold, 
+                                k = n_eval) 
+eval_scheme
+
+algorithms_to_evaluate <- list(
+  IBCF_cos = list(name = "IBCF", param = list(method ="cosine")),
+  IBCF_cor = list(name = "IBCF", param = list(method ="pearson")),
+  UBCF_cos = list(name = "UBCF", param = list(method ="cosine")),
+  UBCF_cor = list(name = "UBCF", param = list(method ="pearson")),
+  random = list(name = "RANDOM", param = NULL)
+)
+
+n_recommendations <- c(1, 5, seq(10, 100, 10))
+
+results <- evaluate(eval_scheme, algorithms_to_evaluate, type = "ratings")
+plot(results)
+
+sapply(results, class) == "evaluationResults"
+lapply(results, avg)
+
+sapply(results, avg)
+
+recom_results <- evaluate(x = eval_scheme, method = algorithms_to_evaluate, n = n_recommendations)
+
+sapply(recom_results, class) == "evaluationResults"
+avg_matrices <- lapply(recom_results, avg)
+
+plot(recom_results, annotate = c(1,3,5),  legend = "topleft") 
+title("ROC curve")
+
+#UBCF_COS appeared to perform well in this dataset 
+
+```
+
+
+
+
+#PART2 EXPLORING THE SECOND DATA
+
+
+```{r}
+
+library(RColorBrewer)
+library(grid)
+library(plyr)
+library(dplyr)
+
+ggplot(data, aes(x=as.factor(rating),y=age)) +
+  geom_boxplot(aes(fill=as.factor(rating))) +
+  scale_fill_discrete(name="rating") +
+  facet_wrap(~occupation)+xlab("rating")
+
+# age VS rating
+ggplot(data, aes(x=as.factor(rating),y=age)) +
+  geom_boxplot(aes(fill=as.factor(rating))) +
+  scale_fill_discrete(name="rating") 
+
+# rating VS gender
+gender.df <- as.data.frame(table(data$gender, data$rating))
+ggplot(gender.df, aes(x=Var1, y=Var2)) +
+  geom_tile(aes(fill = Freq), colour = "black") +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  xlab("gender") +
+  ylab("rating")
+
+# rating VS occupation
+occupation.df <- as.data.frame(table(data$occupation, data$rating))
+ggplot(occupation.df, aes(x=Var1, y=Var2)) +
+  geom_tile(aes(fill = Freq), colour = "black") +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  xlab("occupation") +
+  ylab("rating")
+
+# rating VS genre
+genre.df <- as.data.frame(table(data$genre, data$rating))
+ggplot(genre.df, aes(x=Var1, y=Var2)) +
+  geom_tile(aes(fill = Freq), colour = "black") +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  xlab("genre") +
+  ylab("rating")
+
+# age VS rating VS occupation
+ggplot(data, aes(x=as.factor(rating),y=age)) +
+  geom_boxplot(aes(fill=as.factor(rating))) +
+  scale_fill_discrete(name="rating") +
+  facet_wrap(~occupation)
+
+```
+
+#Age component 
+
+**young people rate lower ,rating seems to be positively related to age .**
+
+#Gender
+
+**Men rate more than women and they rates at 4 most**
+
+#Occupation
+
+**Comparing with other occupations, the number of students who rate is the largest; and students rates at 4 most**.
+
+#Type of movie
+
+**Drama, comedy, action have more rates**
+
+
+#PART3  TIME CONTEXT IN TERM OF THE YEAR RELEASE
+
+```{r}
+summary(MovieLenseMeta)
+str(MovieLense)
+df=MovieLenseMeta
+#We will only consider users  that views more than 100 movies and who rate more than 50 movies
+ratings_movies <- MovieLense[rowCounts(MovieLense) > 50, colCounts(MovieLense) > 100]
+
+
+
+set.seed(0)
+test <- sample(x = 1:5,
+                    size = nrow(ratings_movies),
+                    replace = TRUE)
+for(i in 1:5) {
+  train <- test == i
+  Rtrain <- ratings_movies[train, ]
+  Rtest <- ratings_movies[!train, ]
+}
+
+model<- Recommender(data = Rtrain, method = "UBCF")
+
+predictions <- predict(model, newdata = Rtest, n = 15)
+
+#Choose the biggest year as a benchmark
+m <- max(MovieLenseMeta$year, na.rm = TRUE)
+#Check the number of years between
+
+n.y <- m- df$year
+
+yrs <- as.numeric(levels(as.factor(n.y)))
+wts <- 1 / log(yrs + exp(1))
+
+#year weight
+y.w <- 1 / log(n.y + exp(1))
+#Remove na 
+y.w[is.na(y.w)] <- 0
+weights <- data.frame(title = df$title, wt = y.w, stringsAsFactors = FALSE)
+
+Rdf <- data.frame(user = sort(rep(1:length(predictions@items),predictions@n)), rating = unlist(predictions@ratings), index = unlist(predictions@items))
+Rdf$title <- predictions@itemLabels[Rdf$index]
+library(dplyr)
+Rwt <- inner_join(Rdf, weights, by = "title")
+
+Rwt <- Rwt%>% mutate(wt_rating = rating * wt) %>% group_by(user) %>% arrange(desc(wt_rating)) %>% select(user, title, wt_rating) %>% top_n(5)
+head(Rwt, 13)
+
+Rdf2 <- Rdf %>% group_by(user) %>% arrange(desc(rating)) %>% select(user, title, rating) %>% top_n(5, rating)
+
+head(Rdf2, 10)
+```
+
+#CONCLUSION AND FUTURE WORK
+
+**From this work ,we can see that the best recommender algorithm depend on the data we have in hand ,the context of the business will determine which algorithm to pick.One must dive deeper to understand the paterns of the data as well to get insights  ,it is also important to explore all types of data that could get involved in the business .**
+**It is also important to take into consideration other factors such as time ,location and connections to other intities.**
+**For future work ,I would  to extend this work on computing similarity related to the age ,sex,occupation and give recommendations based on those factors.** 
+
