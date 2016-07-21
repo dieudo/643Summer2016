@@ -7,22 +7,20 @@ output: pdf_document
 
 
 #Introduction
-#This the final project of my course Data 643 at CUNY 
-#The goal is to explore recommender system in some context as time ,as location ,gender....
-# For this project I will use 3 data set all made avaible by grouplense.
+**This is the final project of my course Data 643 at CUNY The goal is to explore recommender system in some context as time ,as location ,gender. For this project I am  3 data set all made available by grouplense.**
+
 **For MovieLense and MovieLenseMeta ,'recommenderlab' provides the data** 
 **the third data could be dowloaded here**
 https://github.com/dieudo/643Summer2016/blob/master/unifiedMLDataMulti.csv
 
-
-#Initially ,I planed to work and compare packages  avalaible on recommendations systems ,but due to time cnstraint I am going to readjust my goal.
+**Initially ,I planed to work and compare packages  avalaible on recommendations systems ,but due to time cnstraint I am going to readjust my goal.**
 **This project will be sectioned in 3 part,the first part is comparing and building algorithms around MovieLense data and getting to know the performances associated**.
 **The second part is exploring  the users that rated the movies ,can we classified them and learn something related to their age ,their occupations?**
-**The third part will be to implement a contextual time value associted to the year**
+**The third part will be to implement a contextual time value associated to the year**
 
 
 
-```{r}
+```{r PART1,warning=FALSE,message=FALSE}
 #DATA & libraries
 library(plyr)
 library(RColorBrewer)
@@ -43,7 +41,7 @@ data<- read.csv("~/Downloads/unifiedMLDataMulti.csv")
 #
 
 
-```{r}
+```{r,warming=FALSE,message=FALSE}
 views_per_movie <- colCounts(MovieLense)
 
 views_tbl <- data.frame(
@@ -124,13 +122,13 @@ title("ROC curve")
 
 ```
 
-
+**UBCF_COS appeared to perform well in this dataset** 
 
 
 #PART2 EXPLORING THE SECOND DATA
 
 
-```{r}
+```{r PART2,warning=FALSE,message=FALSE}
 
 library(RColorBrewer)
 library(grid)
@@ -161,7 +159,7 @@ ggplot(occupation.df, aes(x=Var1, y=Var2)) +
   geom_tile(aes(fill = Freq), colour = "black") +
   scale_fill_gradient(low = "white", high = "steelblue") +
   xlab("occupation") +
-  ylab("rating")
+  ylab("rating")+coord_flip()
 
 # rating VS genre
 genre.df <- as.data.frame(table(data$genre, data$rating))
@@ -169,7 +167,7 @@ ggplot(genre.df, aes(x=Var1, y=Var2)) +
   geom_tile(aes(fill = Freq), colour = "black") +
   scale_fill_gradient(low = "white", high = "steelblue") +
   xlab("genre") +
-  ylab("rating")
+  ylab("rating")+coord_flip()
 
 # age VS rating VS occupation
 ggplot(data, aes(x=as.factor(rating),y=age)) +
@@ -198,9 +196,9 @@ ggplot(data, aes(x=as.factor(rating),y=age)) +
 
 #PART3  TIME CONTEXT IN TERM OF THE YEAR RELEASE
 
-```{r}
-summary(MovieLenseMeta)
-str(MovieLense)
+```{r PART3,warning=FALSE,message=FALSE}
+#summary(MovieLenseMeta)
+#str(MovieLense)
 df=MovieLenseMeta
 #We will only consider users  that views more than 100 movies and who rate more than 50 movies
 ratings_movies <- MovieLense[rowCounts(MovieLense) > 50, colCounts(MovieLense) > 100]
@@ -232,6 +230,9 @@ wts <- 1 / log(yrs + exp(1))
 
 #year weight
 y.w <- 1 / log(n.y + exp(1))
+#Exponential decay
+plot(df$year,y.w,col="blue",main="by year")
+plot(n.y,y.w,col="red",main="by the difference in time")
 #Remove na 
 y.w[is.na(y.w)] <- 0
 weights <- data.frame(title = df$title, wt = y.w, stringsAsFactors = FALSE)
@@ -255,3 +256,15 @@ head(Rdf2, 10)
 **It is also important to take into consideration other factors such as time ,location and connections to other intities.**
 **For future work ,I would  to extend this work on computing similarity related to the age ,sex,occupation and give recommendations based on those factors.** 
 
+
+
+Reference : 
+Suresh K. Gorakala, Michele Usuelli
+**Time weights**
+Building a Recommendation System with R
+https://www.packtpub.com/big-data-and-business-intelligence/building-recommendation-system-r
+
+ **unifiedMLDataMulti.csv**
+Justin Chu : cleaning the grouplense data and puting into :unifiedMLDataMulti.csv
+
+https://github.com/JustinChu?tab=repositories
